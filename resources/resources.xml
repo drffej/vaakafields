@@ -1,0 +1,66 @@
+
+<resources>
+    <fitContributions>
+        <fitField id="0"
+        displayInChart="true"
+        sortOrder="0"
+        precision="2"
+        chartTitle="@Strings.cadence_graph_label"
+        dataLabel="@Strings.cadence_label"
+        unitLabel="@Strings.cadence_units"
+        displayInActivitySummary="true"
+        fillColor="#FF0000" />
+
+        <fitField id="1"
+        displayInChart="true"
+        sortOrder="0"
+        precision="2"
+        chartTitle="@Strings.mps_graph_label"
+        dataLabel="@Strings.mps_label"
+        unitLabel="@Strings.mps_units"
+        displayInActivitySummary="true"
+        fillColor="#00FF00" />
+
+    </fitContributions>
+
+    <properties>
+        <property id="recovery" type="number">0</property>
+        <property id="endurance" type="number">32</property>
+        <property id="tempo" type="number">36</property>
+        <property id="threshold" type="number">38</property>
+        <property id="v02max" type="number">44</property>
+    </properties>
+
+    <strings>
+        <string id="CadenceRangeTitle">Kayak Cadence Range</string>
+        <string id="CadenceRangeDescription">(double strokes per minute)</string>
+        <string id="RecoveryTitle">Recovery</string>
+        <string id="EnduranceTitle">Endurance</string>
+        <string id="TempoTitle">Tempo</string>
+        <string id="ThresholdTitle">Threshold</string>
+        <string id="V02MaxTitle">V02  Max</string>
+    </strings>
+
+    <settings>
+        
+            <setting propertyKey="@Properties.recovery" title="@Strings.RecoveryTitle">
+                <settingConfig type="numeric" readonly="false" />
+            </setting>
+            <setting propertyKey="@Properties.endurance" title="@Strings.EnduranceTitle">
+                <settingConfig type="numeric" readonly="false" />
+            </setting>
+            <setting propertyKey="@Properties.tempo" title="@Strings.TempoTitle">
+                <settingConfig type="numeric" readonly="false" />
+            </setting>
+            <setting propertyKey="@Properties.threshold" title="@Strings.ThresholdTitle">
+                <settingConfig type="numeric" readonly="false" />
+            </setting>
+            <setting propertyKey="@Properties.v02max" title="@Strings.V02MaxTitle">
+                <settingConfig type="numeric" readonly="false" />
+            </setting>
+        
+
+
+    
+    </settings>
+</resources>

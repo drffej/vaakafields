@@ -1,0 +1,9 @@
+<strings>
+    <string id="AppName">VaakaFields</string>
+    <string id="cadence_label">cadence</string>
+    <string id="cadence_graph_label">Paddle Cadence</string>
+    <string id="cadence_units">Str(s)</string>
+    <string id="mps_label">Meters per Stroke</string>
+    <string id="mps_graph_label">Paddle Meters per Stroke</string>
+    <string id="mps_units">mps</string>
+</strings>

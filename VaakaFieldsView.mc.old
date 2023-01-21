@@ -1,0 +1,422 @@
+//
+// VaakaFields - displays paddle cadence data and paddle meters per second as 1x2 Fields from device
+//
+// (c) 2022 Jeff Parker 
+//
+
+
+import Toybox.Activity;
+import Toybox.Lang;
+import Toybox.Time;
+import Toybox.WatchUi;
+import Toybox.Ant;
+
+
+class VaakaFieldsView extends WatchUi.DataField {
+
+    private const BORDER_PAD = 4;
+    private const UNITS_SPACING = 2;
+
+    private const _fonts as Array<FontDefinition> = [Graphics.FONT_XTINY, Graphics.FONT_TINY, Graphics.FONT_SMALL, Graphics.FONT_MEDIUM, Graphics.FONT_LARGE,
+             Graphics.FONT_NUMBER_MILD, Graphics.FONT_NUMBER_MEDIUM, Graphics.FONT_NUMBER_HOT, Graphics.FONT_NUMBER_THAI_HOT] as Array<FontDefinition>;
+
+    // Label Variables
+    private var _labelString = "VAAKA";
+    private const _labelFont = Graphics.FONT_XTINY;
+    private const _labelY = 2;
+    private var _labelX as Number = 0;
+
+    // Cadence variables
+    private const _CadenceString = "str";
+    private var _CadenceWidth as Number?;
+    private var _CadenceX as Number = 0;
+    private var _CadenceY as Number = 0;
+
+    // Meters per Stoke variables
+    private const _MPSString = "mps";
+    private var _MPSWidth as Number?;
+    private var _MPSX as Number = 0;
+    private var _MPSY as Number = 0;
+
+    // Font values
+    private const _unitsFont = Graphics.FONT_XTINY;
+    private var _dataFont as FontDefinition = Graphics.FONT_XTINY;
+    private var _dataFontAscent as Number = 0;
+
+    // field separator line
+    private var _separator as Array<Number>?;
+
+    private var _sensor as VaakaSensor?;
+    private var _xCenter as Number = 0;
+    private var _yCenter as Number = 0;
+
+    // FIT fields
+    const CADENCE_FIELD_ID = 0;
+    const MPS_FIELD_ID = 1;
+    private var cadenceField = null;
+    private var mpsField = null;
+
+    //Suffer Score Values
+    //hidden var _lastMeasuredSufferTime = 0;
+    //private var _sufferScore = null;
+
+    //! Constructor
+    //! @param sensor The ANT channel and data
+    public function initialize(sensor as VaakaSensor?) {
+
+        // Create the custom FIT data field we want to record for paddling.
+        cadenceField = createField(
+            "cadence",
+            CADENCE_FIELD_ID,
+            FitContributor.DATA_TYPE_FLOAT,
+            {:mesgType=>FitContributor.MESG_TYPE_RECORD, :units=>"B"}
+        );
+        mpsField = createField(
+            "mps",
+            MPS_FIELD_ID,
+            FitContributor.DATA_TYPE_FLOAT,
+            {:mesgType=>FitContributor.MESG_TYPE_RECORD, :units=>"B"}
+        );
+
+        cadenceField.setData(0.0);
+        mpsField.setData(0.0);
+        DataField.initialize();
+        _sensor = sensor;
+    }
+
+    var _previousCadence = 0;
+    private function recordCadence(value){
+        if (value != _previousCadence){
+            _previousCadence = value;
+            cadenceField.setData(value);
+        }
+    }
+
+    var _previousMPS = 0;
+    private function recordMPS(value){
+        if (value != _previousMPS){
+            _previousMPS = value;
+            mpsField.setData(value);
+        }
+    }
+
+    //! Update Speed data for MPS computations
+    //! @param info The updated Activity.Info object
+    public function compute(info as Info) as Void {
+        _sensor.calculateMPS(info.currentSpeed);
+    }
+
+    // draw vertical text 
+    private function drawVerticalText(dc, x, y, font, text) {
+        var gap = 4;     
+        var fontH = Graphics.getFontAscent(font);
+        
+        y = y - (fontH-gap)*(text.length()-1);
+        
+        for (var i = 0; i < text.length(); i++) { 
+            dc.drawText( x, y + (i*(fontH - gap)), font, text.substring(i, i+1), Graphics.TEXT_JUSTIFY_LEFT); 
+            //dc.drawRectangle(x, y+ (i*(fontH -4)), 30, fontH);
+        } 
+    } 
+
+    //! Display Cadence and MPS data fields
+    //! @param dc Device context
+    public function onLayout(dc as Dc) as Void {
+        var width = dc.getWidth();
+        var height = dc.getHeight();
+        var top = _labelY + Graphics.getFontAscent(_labelFont) + BORDER_PAD;
+
+        // Units width does not change, compute only once
+        if (_CadenceWidth == null) {
+            //_CadenceWidth = dc.getTextWidthInPixels(_CadenceString, _unitsFont) + UNITS_SPACING;
+            _CadenceWidth = dc.getTextWidthInPixels("m", _unitsFont) + UNITS_SPACING;
+        }
+        var CadenceWidth = _CadenceWidth as Number;
+
+        if (_MPSWidth == null) {
+            //_MPSWidth = dc.getTextWidthInPixels(_MPSString, _unitsFont) + UNITS_SPACING;
+            _MPSWidth = dc.getTextWidthInPixels("m", _unitsFont) + UNITS_SPACING;
+        }
+        var MPSWidth = _MPSWidth as Number;
+
+        // Center the field label
+        _labelX = width / 2;
+
+        // Compute data width/height for both layouts
+        var hLayoutWidth = (width - (2 * BORDER_PAD)) / 2;
+        //var hLayoutHeight = height - (2 * BORDER_PAD) - top;
+        //var hLayoutHeight = height - (0 * BORDER_PAD) - top +7;
+        var hLayoutHeight = height ;
+        //System.println("h layout");
+       // System.println(Lang.format("v layout h=$1$ top=$2$",[height.format("%d"),top.format("%d")]));
+        //var hLayoutFontIdx = selectFont(dc, (hLayoutWidth - CadenceWidth), hLayoutHeight);
+
+        //var hLayoutFontIdx = selectFont(dc, 150, hLayoutHeight);
+        var hLayoutFontIdx = selectFont(dc, (hLayoutWidth - CadenceWidth), hLayoutHeight);
+        var size = Graphics.getFontAscent(_fonts[hLayoutFontIdx]);
+            
+        System.println(Lang.format("set size $1$ h=$2$ h2=$3$ size=$4$",[hLayoutFontIdx.format("%d"), height.format("%d"), hLayoutHeight.format("%d"),size.format("%d")] ) );
+
+        
+        var vLayoutWidth = width - (2 * BORDER_PAD);
+        //var vLayoutHeight = (height - top - (3 * BORDER_PAD)) / 2;
+        var vLayoutHeight = (height - top -  (3*BORDER_PAD))/2;
+        //System.println(Lang.format("v layout h=$1$ top=$2$",[height.format("%d"),top.format("%d")]));
+        var vLayoutFontIdx = selectFont(dc, (vLayoutWidth - CadenceWidth), vLayoutHeight);
+        
+        // Use the horizontal layout if it supports a larger font
+        if (hLayoutFontIdx > vLayoutFontIdx) {
+            //System.println("horizontal layout");
+            _dataFont = _fonts[hLayoutFontIdx];
+            _dataFontAscent = Graphics.getFontAscent(_dataFont);
+
+            // Compute the draw location of the Cadence
+            _CadenceX = BORDER_PAD + (hLayoutWidth / 2) - (CadenceWidth / 2);
+            //_CadenceY = (height - top) / 2 + top - (_dataFontAscent / 2);
+            //_CadenceY = (height - top) - _dataFontAscent;
+            //_CadenceY = height - _dataFontAscent - BORDER_PAD- 40;
+            _CadenceY = ((height-top) - _dataFontAscent - BORDER_PAD)/2 + top/2;
+    //_CadenceY = (height - _dataFontAscent - BORDER_PAD)/2;
+            //System.println(Lang.format("CadenceY $1$ font h=$2$",[_CadenceY.format("%d"), _dataFontAscent.format("%d")]));
+
+            // Compute the center of the MPS Data
+            _MPSX = (2 * BORDER_PAD) + hLayoutWidth + (hLayoutWidth / 2) - (_MPSWidth / 2);
+            _MPSY = _CadenceY;
+
+            // Use a separator line for horizontal layout
+            _separator = [(width / 2), top + BORDER_PAD, (width / 2), height - BORDER_PAD] as Array<Number>;
+        } else {
+            // otherwise, use the vertical layout
+            _dataFont = _fonts[vLayoutFontIdx];
+            _dataFontAscent = Graphics.getFontAscent(_dataFont);
+
+            _CadenceX = BORDER_PAD + (vLayoutWidth / 2) - (CadenceWidth / 2);
+            _CadenceY = top + BORDER_PAD + (vLayoutHeight / 2) - (_dataFontAscent / 2);
+
+            _MPSX = BORDER_PAD + (vLayoutWidth / 2) - (_MPSWidth / 2);
+            _MPSY = _CadenceY + BORDER_PAD + vLayoutHeight;
+
+            // Do not use a separator line for vertical layout
+            _separator = null;
+        }
+
+        _xCenter = dc.getWidth() / 2;
+        _yCenter = dc.getHeight() / 2;
+    }
+
+    //! Get the largest font that fits in the given width and height
+    //! @param dc Device context
+    //! @param width Width to fit in
+    //! @param height Height to fit in
+    //! @return Index of the font that fits
+    private function selectFont(dc as Dc, width as Number, height as Number) as Number {
+        var testString = "8.8"; // Dummy string to test data width
+        var fontIdx;
+
+        // Search through fonts from biggest to smallest
+        for (fontIdx = (_fonts.size() - 1); fontIdx > 0; fontIdx--) {
+
+            var dimensions = dc.getTextDimensions(testString, _fonts[fontIdx]);
+            var size = Graphics.getFontAscent(_fonts[fontIdx]);
+
+            _dataFontAscent = dimensions[1];
+            if ((dimensions[0] <= width) && (dimensions[1] <= height)) {
+                // If this font fits, it is the biggest one that does
+                break;
+            }
+        }
+        return fontIdx;
+    }
+
+    //! Handle the update event
+    //! @param dc Device context
+    public function onUpdate(dc as Dc) as Void {
+        var bgColor = getBackgroundColor();
+        var fgColor = Graphics.COLOR_WHITE;
+
+        if (bgColor == Graphics.COLOR_WHITE) {
+            fgColor = Graphics.COLOR_BLACK;
+        }
+
+        dc.setColor(fgColor, bgColor);
+        dc.clear();
+
+        dc.setColor(fgColor, Graphics.COLOR_TRANSPARENT);
+
+        // Update status
+        var sensor = _sensor;
+        if (sensor == null) {    
+            dc.drawText(_xCenter, _yCenter, Graphics.FONT_MEDIUM, "No Channel!", Graphics.TEXT_JUSTIFY_CENTER);
+        } 
+        else {
+
+            // Change label to reflect pairing status
+            if (sensor.isPaired()){
+               _labelString = "VAAKA"; 
+            } 
+            else {
+                _labelString = "VAAKA.";
+            }
+
+            // change colour to reflect is not sending data
+            if (!sensor.isSending()){
+                dc.setColor(Graphics.COLOR_RED, bgColor);
+            }
+
+            // Draw the field label
+            dc.drawText(_labelX, _labelY, _labelFont, _labelString, Graphics.TEXT_JUSTIFY_CENTER);
+            dc.setColor(fgColor, Graphics.COLOR_TRANSPARENT);
+
+            // get Cadence and MPS values
+            var CadenceCount as String;
+            var MPSValue as String;
+            var sensorData as VaakaData;
+            sensorData = sensor.getData();
+            CadenceCount = sensorData.getCadence().format("%d");
+            MPSValue = sensorData.getMPS().format("%1.1f");
+
+            // record fit data to log
+            recordCadence(sensorData.getCadence());
+            recordMPS(sensorData.getMPS());
+
+            // Draw Cadence Field
+            dc.drawText(_CadenceX, _CadenceY, _dataFont, CadenceCount, Graphics.TEXT_JUSTIFY_CENTER);
+
+            // Draw Cadence labl
+            var x = _CadenceX + (dc.getTextWidthInPixels(CadenceCount, _dataFont) / 2) + UNITS_SPACING;
+            var y = _CadenceY + _dataFontAscent - Graphics.getFontAscent(_unitsFont);
+            drawVerticalText(dc, x, y, _unitsFont, _CadenceString);
+
+            // Draw MPS
+            dc.drawText(_MPSX, _MPSY, _dataFont, MPSValue, Graphics.TEXT_JUSTIFY_CENTER);
+            x = _MPSX + (dc.getTextWidthInPixels(MPSValue, _dataFont) / 2) + UNITS_SPACING;
+            y = _MPSY + _dataFontAscent - Graphics.getFontAscent(_unitsFont);
+            drawVerticalText(dc, x, y, _unitsFont, _MPSString);
+
+            // Draw separator or suffer score
+            var separator = _separator;
+            if (separator != null) {
+                dc.setPenWidth(2);
+                dc.drawLine(separator[0], separator[1], separator[2], separator[3]);
+                
+                /* save for future enhancement
+                if (_sufferScore != null){
+                    showsufferScore(dc,separator[0], separator[1], separator[3]-separator[1]);
+                    //dc.drawLine(separator[0], separator[1], separator[2], separator[3]);
+                }
+                else {
+                    
+                    dc.drawLine(separator[0], separator[1], separator[2], separator[3]);
+                }
+                */
+            }
+        }
+    }
+/* Future enhancement
+    //! Draw bar showing training effect a gauge
+    private function showsufferScore(dc,x,y,height) as Void {
+
+        // set default colours
+        var bgColor = getBackgroundColor();
+        var fgColor = Graphics.COLOR_WHITE;
+
+        if (bgColor == Graphics.COLOR_WHITE) {
+            fgColor = Graphics.COLOR_BLACK;
+        }
+        //dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_RED);
+
+        // draw guage
+        dc.drawRoundedRectangle(x-8, y, 17, height -1, 2);
+        dc.setColor(fgColor, fgColor);
+
+        // draw segments
+        var segmentHeight = height/4;
+        var thisY = y - segmentHeight  ;
+
+        for (var i = 1; i < 5; i++) {
+            // draw elements
+            thisY = thisY + segmentHeight;
+            if (i != 1 && i != 4){
+                dc.drawRectangle(x-8, thisY, 17, segmentHeight + 1);
+            }
+
+            var colour = getSegmentColour(i);
+            dc.setColor(colour, colour);
+            dc.fillRectangle(x-6, thisY+2, 13, segmentHeight-3);
+            dc.setColor(fgColor, bgColor);
+        }
+    }
+
+    //! draw segment colour based on suffer score
+    private function getSegmentColour(segment as Number) as Graphics.ColorType {
+        var fillColor = Graphics.COLOR_WHITE;
+
+        if (null != _sufferScore ) {     
+            switch(segment){
+                case 4: 
+                    if ( _sufferScore < 100 ) {
+                        // easy
+                        fillColor = Graphics.COLOR_LT_GRAY;
+                    }
+                    else if (_sufferScore >= 100) {
+                        // maintain
+                        fillColor = Graphics.COLOR_BLUE;
+                    }
+                    break;
+                case 3:
+                    if (_sufferScore >= 150) {
+                        // improve
+                        fillColor = Graphics.COLOR_GREEN;
+                    }
+                    break;
+                case 2:
+                    if (_sufferScore >= 200) {
+                        // lots fitter
+                        fillColor = Graphics.COLOR_YELLOW;
+                    }
+                    break;
+                case 1:
+                    if (_sufferScore > 250) {
+                        // lots fitter
+                        fillColor = Graphics.COLOR_RED;
+                    }
+                    break;
+            }
+        }
+        return fillColor;
+    }
+*/
+    //! Handle the activity timer starting
+    public function onTimerStart() as Void {
+    }
+
+    //! Handle the activity timer stopping
+    public function onTimerStop() as Void {
+        // System.println("timer stop....");
+       // _fitContributor.setTimerRunning(false);
+    }
+
+    //! Handle an activity timer pause
+    public function onTimerPause() as Void {
+        // System.println("timer pause");
+       // _fitContributor.setTimerRunning(false);
+    }
+
+    //! Handle the activity timer resuming
+    public function onTimerResume() as Void {
+        // System.println("timer resume");
+  
+    }
+
+    //! Handle a lap event
+    public function onTimerLap() as Void {
+        
+    }
+
+    //! Handle the current activity ending
+    public function onTimerReset() as Void {
+         //System.println("timer reset");
+       // _fitContributor.onTimerReset();
+    }
+
+}
