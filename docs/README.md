@@ -22,7 +22,7 @@ Intensity | Name | Cadence (double strokes per minute)|Gauge Colour
 :---|:---|:---|:---
 1|Recovery|28-32|Dark Gray
 2|Endurance|32-36|Blue
-3|Tempo|36-38|Yellow
+3|Tempo|36-38|Orange
 4|V02 Max|44+|Red
 
 These can be changed via the app setting feature on the Connect IQ app.  See [changing app settings](https://forums.garmin.com/developer/connect-iq/w/wiki/14/changing-your-app-settings-in-garmin-express-gcm-ciq-mobile-store?_ga=2.75208401.279501722.1676368629-592074247.1673710446) on the Garmin forums site for more information.
@@ -44,7 +44,7 @@ The graph below shows paddle cadance (grey) plotted against boat speed (blue) an
 
 Install the field from the [ConnnectIQ](https://apps.garmin.com/en-US/apps/1b64207a-020f-45cc-8bf4-94e75f47d3b9) app store.
 
-These can be changed via the Connect IQ application setting - see link for details - https://forums.garmin.com/developer/connect-iq/w/wiki/14/changing-your-app-settings-in-garmin-express-gcm-ciq-mobile-store?_ga=2.139361142.417454056.1673869694-592074247.1673710446
+These can be changed via the Connect IQ application setting - see [link](https://forums.garmin.com/developer/connect-iq/w/wiki/14/changing-your-app-settings-in-garmin-express-gcm-ciq-mobile-store?_ga=2.139361142.417454056.1673869694-592074247.1673710446).
 
 ## Feedback
 
