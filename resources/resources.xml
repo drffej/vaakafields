@@ -29,38 +29,50 @@
         <property id="tempo" type="number">36</property>
         <property id="threshold" type="number">38</property>
         <property id="v02max" type="number">44</property>
+        <property id="deviceNumber" type="number">0</property>
+        <property id="serialNumber" type="number">0</property>
     </properties>
 
     <strings>
         <string id="CadenceRangeTitle">Kayak Cadence Range</string>
+        <string id="CadenceRange1Description">Paddle Strokes for each intensity level</string>
         <string id="CadenceRangeDescription">(double strokes per minute)</string>
         <string id="RecoveryTitle">Recovery</string>
         <string id="EnduranceTitle">Endurance</string>
         <string id="TempoTitle">Tempo</string>
         <string id="ThresholdTitle">Threshold</string>
         <string id="V02MaxTitle">V02  Max</string>
+        <string id="VaakaDeviceTitle">Vaaka Device Info</string>
+        <string id="VaakaDeviceDescription">See Watch sensor settings for more info.</string>
+        <string id="SerialNumberTitle">Serial Number</string>
+        <string id="DeviceNumberTitle">Device Number</string>
     </strings>
 
     <settings>
-        
+        <group id="cadenceRange" title="@Strings.CadenceRangeTitle" description="@Strings.CadenceRange1Description">
             <setting propertyKey="@Properties.recovery" title="@Strings.RecoveryTitle">
-                <settingConfig type="numeric" readonly="false" />
+                <settingConfig type="numeric" readonly="false" required="true" />
             </setting>
             <setting propertyKey="@Properties.endurance" title="@Strings.EnduranceTitle">
-                <settingConfig type="numeric" readonly="false" />
+                <settingConfig type="numeric" readonly="false" required="true"  />
             </setting>
             <setting propertyKey="@Properties.tempo" title="@Strings.TempoTitle">
-                <settingConfig type="numeric" readonly="false" />
+                <settingConfig type="numeric" readonly="false" required="true" />
             </setting>
             <setting propertyKey="@Properties.threshold" title="@Strings.ThresholdTitle">
-                <settingConfig type="numeric" readonly="false" />
+                <settingConfig type="numeric" readonly="false" required="true" />
             </setting>
             <setting propertyKey="@Properties.v02max" title="@Strings.V02MaxTitle">
-                <settingConfig type="numeric" readonly="false" />
+                <settingConfig type="numeric" readonly="false" required="true" />
             </setting>
-        
-
-
-    
+        </group>
+        <group id="groupName" title="@Strings.VaakaDeviceTitle" description="@Strings.VaakaDeviceDescription">
+            <setting propertyKey="@Properties.deviceNumber" title="@Strings.DeviceNumberTitle">
+                <settingConfig type="numeric" readonly="true" />
+            </setting>
+            <setting propertyKey="@Properties.serialNumber" title="@Strings.SerialNumberTitle">
+                <settingConfig type="numeric" readonly="true" />
+            </setting> 
+        </group>
     </settings>
 </resources>

@@ -4,7 +4,7 @@
 //  ANT+ profile: https://www.thisisant.com/developer/ant-plus/device-profiles/#523_tab
 //  Spec sheet: https://www.thisisant.com/resources/bicycle-speed-and-cadence/
 //
-// (c) 2022 Jeff Parker 
+// (c) 2022, 2023 Jeff Parker 
 //
 
 import Toybox.ActivityRecording;
@@ -13,30 +13,35 @@ import Toybox.FitContributor;
 import Toybox.Lang;
 import Toybox.Time;
 import Toybox.WatchUi;
+import Toybox.Application;
 
 class VaakaData {
         private var _cadence as Number;
         private var _cadenceCount as Number;
-        private var _cadenceEventTime as Long;
-        private var _mps as Float;        
+        private var _cadenceEventTime as Number;
+        private var _mps as Float;  
+        private var _togglePage as Boolean = false;   
+
+        private var _staleCadenceCount as Number;
 
         //! Constructor
         public function initialize() {
             _cadence = 0;
-            _cadenceCount =0;
+            _cadenceCount = 0;
             _cadenceEventTime = 0;
             _mps = 0.0;
+            _staleCadenceCount = 0;          
         }
 
         //! Get the current Cadence
         //! @return cadence
-        public function getCadence() as Numeric {
+        public function getCadence() as Number {
             return _cadence;
         }
 
         //! Get the current Cadence
         //! @cadence new cadence value
-        public function setCadence(cadence) {
+        public function setCadence(cadence as Number) as Void {
             _cadence  = cadence ;
         }
 
@@ -46,103 +51,111 @@ class VaakaData {
             return _mps;
         }
 
-
-        
-
-
     
         //! Parse the payload to get the current data values
         //! @param payload ANT data payload
         public function parse(payload as Array<Number>) as Void {
 
-
+            var page = payload[0];
             var oldCadenceTime = _cadenceEventTime;
-            var oldCadenceCount as Number = _cadenceCount;
-            var cadenceCount as Number = payload[6] + payload[7]<<8;
-            var cadenceTime as Number = payload[4] + payload[5]<<8;
-
+            var oldCadenceCount = _cadenceCount;
+            var cadenceCount = payload[6] + payload[7]<<8;
+            var cadenceTime = payload[4] + payload[5]<<8;
+            
+            // Calculate cadence
             if (cadenceTime != oldCadenceTime) {
                 _cadenceEventTime = cadenceTime;
                 _cadenceCount = cadenceCount;
-
+                _staleCadenceCount = 0;  
                 
                 if (oldCadenceTime > cadenceTime) { //Hit rollover value
                     cadenceTime += (1024 * 64);
                 }
                 
-                /* never rolls over for Vakka
+               
                 if (oldCadenceCount > cadenceCount) { //Hit rollover value
                     cadenceCount += (1024 * 64);
                 }
-                */
                 
                 var newCadence = ((60 * (cadenceCount - oldCadenceCount) * 1024) / (cadenceTime - oldCadenceTime));
                 if (newCadence != null) {
                     _cadence = newCadence;
                 }
+                if (_cadence < 0){  // shouldn't happen
+                    _cadence = 0;
+                }
+
+                
+            } else {
+                _staleCadenceCount = _staleCadenceCount + 1 ;
             }
+
+            // check for stop padding
+            if (_staleCadenceCount > 7){
+                _cadence = 0;
+            }
+            //System.println(Lang.format("Count [$1$] Time [$2$] Cadence [$3$] Stale[$4$]",[_cadenceCount.format("%d"),_cadenceEventTime.format("%d"),_cadence.format("%d"),_staleCadenceCount.format("%d")]));
 
             // update screen
             WatchUi.requestUpdate();
+
+            // process the toggle bit page value 
+            if (!_togglePage){
+                _togglePage = ((page & 0x80)) > 0;  // true if MSB bit is set 
+            }
             
+            // last 7 bits has data page number
+            if ((page & ~0x80) == 2 && _togglePage){
+                // Data page 2 - Manufacturer ID
+                var serialNumber = payload[2] | (payload[3] << 8 );
+                Application.Properties.setValue("serialNumber",serialNumber);
+                // not interested in page 3, 4, 5
+            }
         }
 
         // Calcuate MPS
         // @currentSpeed in Meters per second
-        public function calculateMPS(currentSpeed as Float) as Void {
+        public function calculateMPS(currentSpeed as Float or Null) as Void {
             if (currentSpeed == null) {
-                return;
-            }
-            var distance = currentSpeed * 60.0;
-            if (_cadence > 0 && distance > 0){
-                _mps = distance/_cadence;
+                _mps = 0.0;
             }
             else {
-                _mps = 0;
-            }         
+                var distance = currentSpeed * 60.0;
+                if (_cadence > 0 && distance > 0){
+                    _mps = distance/_cadence;
+                }
+                else {
+                    _mps = 0.0;
+                }  
+            }       
         }
     }
 
-class VaakaSensor extends Ant.GenericChannel {
+class VaakaSensor {
     //! Page number for the message type we care about
     private const PAGE_NUMBER = 1;
 
     private const DEVICE_TYPE = 0x7A;//120;
     private const PERIOD = 8102;//8192;
 
-    private var _chanAssign as ChannelAssignment;
-    private var _deviceCfg as DeviceConfig;
+    public var _deviceCfg as DeviceConfig?;
+    private var _channel as Ant.GenericChannel?;
     private var _isPaired as Boolean;
     private var _isClosed as Boolean;
     private var _isSending as Boolean;
 
     private var _data as VaakaData;
-    private var _deviceNumber as Number;
+    private var _deviceNumber as Number = 0;
+    
+
+
+    
 
     //private var _proximityPairing;
 
     //! Constructor
+    // Initializes AntPlusHeartRateSensor, configures and opens channel
     public function initialize() {
-
-        // Get the channel
-        _chanAssign = new Ant.ChannelAssignment(Ant.CHANNEL_TYPE_RX_NOT_TX, Ant.NETWORK_PLUS);
-        GenericChannel.initialize(method(:onMessage), _chanAssign);
-
-        // set device number to search
-        _deviceNumber = 0;
-        //_deviceNumber = Application.getApp().getProperty("deviceNumber");
-        //_proximityPairing = Application.getApp().getProperty("proximityPairing");
-
-        // Set the configuration
-        _deviceCfg = new Ant.DeviceConfig({
-            :deviceNumber => 0,                 // Wildcard our search
-            :deviceType => DEVICE_TYPE,
-            :transmissionType => 0,
-            :messagePeriod => PERIOD,
-            :radioFrequency => 57,              // Ant+ Frequency
-            :searchTimeoutLowPriority => 10,    // Timeout in 25s
-            :searchThreshold => 0});            // Pair to all transmitting sensors
-        GenericChannel.setDeviceConfig(_deviceCfg);
 
         // set the data class
         _data = new VaakaData();
@@ -162,30 +175,82 @@ class VaakaSensor extends Ant.GenericChannel {
     public function open() as Boolean {
 
         // Open the channel
-        var open = GenericChannel.open();
+        //var open = GenericChannel.open();
+        var open = false;
         _isClosed = false;
         _isSending = false;
+        _isPaired = false;
 
-        // initialize cadence data
-        _data = new VaakaData();
-        return open;
+        // Get the channel
+        var chanAssign = new Ant.ChannelAssignment(Ant.CHANNEL_TYPE_RX_NOT_TX, Ant.NETWORK_PLUS);
+
+        // Initialize the channel through the superclass
+        try {
+            _channel = new Ant.GenericChannel(method(:onMessage), chanAssign);
+        } catch (e) {
+            System.println(e.getErrorMessage());
+        }
+
+         //System.println("Generic channel initialised");
+        // set device number to search
+        _deviceNumber = Application.Properties.getValue("deviceNumber") as Number;
+        //_proximityPairing = Application.getApp().getProperty("proximityPairing");
+
+        //System.println(Lang.format("Device number=$1$",[_deviceNumber.format("%d")]));
+
+        // Set the configuration
+        _deviceCfg = new Ant.DeviceConfig({
+            :deviceNumber => _deviceNumber,                 // Wildcard our search
+            :deviceType => DEVICE_TYPE,
+            :transmissionType => 0,
+            :messagePeriod => PERIOD,
+            :radioFrequency => 57,              // Ant+ Frequency
+            :searchTimeoutLowPriority => 10,    // Timeout in 25s
+            :searchThreshold => 0});            // Pair to all transmitting sensors
+        
+        if (_channel != null){
+            _channel.setDeviceConfig(_deviceCfg);
+        }
+
+        if (_channel != null && _channel.open() == true){
+            return true;
+        }
+        else {
+            System.println("Channel not open");
+            return false;
+        }
     }
 
     //! Close the ANT sensor and save the session
-    public function closeSensor() as Void {
+    public function close() as Void {
         _isClosed = true; 
         _isSending = false;  
-        GenericChannel.close();
+        var channel = _channel;
+        if (channel != null) {
+            _channel = null;
+            channel.release();
+        }
     }
 
     //! Update when a message is received
     //! @param msg The ANT message
     public function onMessage(msg as Message) as Void {
 
-        _deviceCfg = GenericChannel.getDeviceConfig();
+        if (_channel != null){
+            _deviceCfg = _channel.getDeviceConfig();
+        }
         var payload = msg.getPayload();
 
+        var page = payload[0] & ~0x80;
+        //System.println(Lang.format("page=[$1$]",[page.format("%x")]) );
+
+        //System.println(Lang.format("messageResponse=[$1$]",[msg.messageId.format("%x")]) );
+        //var code = payload[0] & 0xfe;
+        //System.println(Lang.format("messageID=[0x$1$]",[code.format("%x")]) );
+        //System.println(Lang.format("messageCode=[0x$1$]",[payload[1].format("%x")]) );
         if ((Ant.MSG_ID_BROADCAST_DATA == msg.messageId)){
+            System.println(Lang.format("[0x$1$] MSG_ID_BROADCAST_DATA Page [0x$2$]",[msg.messageId.format("%x"),page.format("%x")]));
+
             // Were we searching?
             _isSending = true;   // device Transmitting data
 
@@ -196,7 +261,11 @@ class VaakaSensor extends Ant.GenericChannel {
                 _deviceNumber = msg.deviceNumber;
                
                 // Update our device configuration primarily to see the device number of the sensor we paired to
-                _deviceCfg = GenericChannel.getDeviceConfig();
+                if (_channel != null){
+                    _deviceCfg = _channel.getDeviceConfig();
+                }
+                //System.println(Lang.format("Device number=$1$",[_deviceNumber.format("%d")]));
+                Application.Properties.setValue("deviceNumber",_deviceNumber);
             }
 
             // get the device payload
@@ -204,11 +273,12 @@ class VaakaSensor extends Ant.GenericChannel {
 
         } else if ((Ant.MSG_ID_CHANNEL_RESPONSE_EVENT == msg.messageId) && (Ant.MSG_ID_RF_EVENT == (payload[0] & 0xFF))) {
             // handle RF Event
-            //System.println( Lang.format("RF event:$1$", [payload[1].format("%x")] ) );
+            //System.println(Lang.format("[0x40 MSG_ID_CHANNEL_RESPONSE_EVENT event: MSG_ID_RF_EVENT code: [0x$1$]",[payload[1].format("%x")]));
             switch((payload[1] & 0xFF)){
             // Close event occurs after a search timeout or if it was requested
 
             case Toybox.Ant.MSG_CODE_EVENT_CHANNEL_CLOSED:
+                // System.println("MSG_CODE_EVENT_CHANNEL_CLOSED");
                 // Reset Cadence data after the channel closes
                 _data.setCadence(0);
 
@@ -233,12 +303,15 @@ class VaakaSensor extends Ant.GenericChannel {
                 break;
             
             }
+        } else {
+            //System.println(Lang.format("Other =[0x$1$]",[msg.messageId.format("%x")]) );
+
         }
     }
 
     //! Get the data for this sensor
     //! @return Data object
-    public function getData() {
+    public function getData() as VaakaData {
         return _data;
     }
 

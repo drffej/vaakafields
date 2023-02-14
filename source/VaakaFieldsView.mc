@@ -1,7 +1,7 @@
 //
 // VaakaFields - displays paddle cadence data and paddle meters per second as 1x2 Fields from device
 //
-// (c) 2022 Jeff Parker 
+// (c) 2022, 2023 Jeff Parker 
 //
 
 
@@ -10,6 +10,8 @@ import Toybox.Lang;
 import Toybox.Time;
 import Toybox.WatchUi;
 import Toybox.Ant;
+import Toybox.FitContributor;
+import Toybox.Graphics;
 using Toybox.Application.Properties as Properties;
 
 
@@ -18,12 +20,12 @@ class VaakaFieldsView extends WatchUi.DataField {
     private const BORDER_PAD = 4;
     private const UNITS_SPACING = 2;
 
-    private const _fonts as Array<FontDefinition> = [Graphics.FONT_XTINY, Graphics.FONT_TINY, Graphics.FONT_SMALL, Graphics.FONT_MEDIUM, Graphics.FONT_LARGE,
-             Graphics.FONT_NUMBER_MILD, Graphics.FONT_NUMBER_MEDIUM, Graphics.FONT_NUMBER_HOT, Graphics.FONT_NUMBER_THAI_HOT] as Array<FontDefinition>;
+    private const _fonts as Array<Graphics.FontDefinition> = [Graphics.FONT_XTINY, Graphics.FONT_TINY, Graphics.FONT_SMALL, Graphics.FONT_MEDIUM, Graphics.FONT_LARGE,
+             Graphics.FONT_NUMBER_MILD, Graphics.FONT_NUMBER_MEDIUM, Graphics.FONT_NUMBER_HOT, Graphics.FONT_NUMBER_THAI_HOT] ;
 
     // Label Variables
-    private var _labelCadence = "STROKES";
-    private var _labelMPS = "MPS";
+    private var _labelCadence as String = "STROKES";
+    private var _labelMPS as String = "MPS";
     private const _labelFont = Graphics.FONT_XTINY;
     private const _labelY = 1;
     private var _labelX as Number = 0;
@@ -41,31 +43,32 @@ class VaakaFieldsView extends WatchUi.DataField {
     private var _MPSY as Number = 0;
 
     // Font values
-    private const _unitsFont = Graphics.FONT_XTINY;
-    private var _dataFont as FontDefinition = Graphics.FONT_XTINY;
+    private const _unitsFont as Graphics.FontType = Graphics.FONT_XTINY;
+    private var _dataFont as Graphics.FontType = Graphics.FONT_XTINY;
     private var _dataFontAscent as Number = 0;
 
     // field separator line
     private var _separator as Array<Number>?;
 
-    private var _sensor as VaakaSensor?;
+    private var _sensor as VaakaSensor;
+    private var _sensorOpen as Boolean = false;
+
     private var _xCenter as Number = 0;
     private var _yCenter as Number = 0;
 
     // FIT fields
     const CADENCE_FIELD_ID = 0;
     const MPS_FIELD_ID = 1;
-    private var cadenceField = null;
-    private var mpsField = null;
+    private var cadenceField as FitContributor.Field;
+    private var mpsField as FitContributor.Field;
 
     // rolling average
     const AVERAGE_WINDOW = 5;
-    
-    private var _RAcurrentPosition = 0;
-    private var _RAcurrentSum = 0;
-    private var _rollingAverage as Array<Number>;
+    private var _RAcurrentPosition as Number = 0;
+    private var _RAcurrentSum as Number = 0;
+    private var _rollingAverage as Array<Number>?;
 
-    // paddle cadence levels
+    // paddle cadence levels - defaults
     private var _recovery as Number = 28;
     private var _endurance as Number = 32;
     private var _tempo as Number = 36;
@@ -78,7 +81,10 @@ class VaakaFieldsView extends WatchUi.DataField {
 
     //! Constructor
     //! @param sensor The ANT channel and data
-    public function initialize(sensor as VaakaSensor?) {
+    public function initialize() {
+
+        DataField.initialize();
+
 
         // Create the custom FIT data field we want to record for paddling.
         cadenceField = createField(
@@ -96,18 +102,18 @@ class VaakaFieldsView extends WatchUi.DataField {
 
         cadenceField.setData(0.0);
         mpsField.setData(0.0);
-        DataField.initialize();
-        _sensor = sensor;
+       
+        _sensor = new VaakaSensor();
 
         // load Cadence defaults
-        _recovery = Properties.getValue("recovery");
-        _tempo = Properties.getValue("tempo");
-        _endurance = Properties.getValue("endurance");
-        _threshold = Properties.getValue("threshold");
-        _v02max = Properties.getValue("v02max");
+        _recovery = Properties.getValue("recovery") ;
+        _tempo = Properties.getValue("tempo") as Number;
+        _endurance = Properties.getValue("endurance") as Number;
+        _threshold = Properties.getValue("threshold") as Number;
+        _v02max = Properties.getValue("v02max") as Number;
         
 /*
-<property id="recovery" type="number">0</property>
+        <property id="recovery" type="number">0</property>
         <property id="endurance" type="number">32</property>
         <property id="tempo" type="number">36</property>
         <property id="threshold" type="number">38</property>
@@ -123,10 +129,43 @@ class VaakaFieldsView extends WatchUi.DataField {
     }
 
 
+    // Called from VaakaFieldsApp.onStart()
+    public function onStart() as Void {
+        
+        try {
+            if (_sensor != null && _sensor.open() == true) {
+                _sensorOpen = true;
+                //System.println("sensor open");
+            }
+        } catch(e instanceof Lang.Exception) {
+            System.println("*** No more ant channels: "+e.getErrorMessage());
+        }
+    }
+
+    // Called from VaakaFieldsApp.onStop()
+    public function onStop() as Void {
+        if (_sensor != null) {
+            _sensor.close();
+        }
+    }
+
+
+    // Called from VaakaFieldsApp.onSettingsChanged()
+    public function onSettingsChanged() as Void {
+        // load Cadence defaults
+        _recovery = Properties.getValue("recovery") as Number;
+        _tempo = Properties.getValue("tempo") as Number;
+        _endurance = Properties.getValue("endurance") as Number;
+        _threshold = Properties.getValue("threshold") as Number;
+        _v02max = Properties.getValue("v02max") as Number;
+        WatchUi.requestUpdate();   // update the view to reflect changes
+    }
+
+/*
     private function RollingAverage(newValue as Number) as Number {
-        var _rollingAverage as Array<Number>?;
-        var _RAcurrentPosition as Number = 0;
-        var _RAcurrentSum as Number = 0;
+        //var _rollingAverage as Array;
+        var _RAcurrentPosition = 0;
+        var _RAcurrentSum = 0;
 
          //Subtract the oldest number from the prev sum, add the new number
         //_RAcurrentSum = _RAcurrentSum - _rollingAverage[_RAcurrentPosition] + newValue;
@@ -143,18 +182,19 @@ class VaakaFieldsView extends WatchUi.DataField {
         //return the average
         return _RAcurrentSum / AVERAGE_WINDOW;
     }
+    */
 
 
-    var _previousCadence = 0;
-    private function recordCadence(value){
+    var _previousCadence as Number = 0;
+    private function recordCadence(value as Number) as Void{
         if (value != _previousCadence){
             _previousCadence = value;
             cadenceField.setData(value);
         }
     }
 
-    var _previousMPS = 0;
-    private function recordMPS(value){
+    var _previousMPS as Float = 0.0;
+    private function recordMPS(value as Float) as Void{
         if (value != _previousMPS){
             //if (value < 2*RollingAverage(value)){
                 _previousMPS = value;
@@ -166,7 +206,11 @@ class VaakaFieldsView extends WatchUi.DataField {
     //! Update Speed data for MPS computations
     //! @param info The updated Activity.Info object
     public function compute(info as Info) as Void {
-        _sensor.calculateMPS(info.currentSpeed);
+        if (info has :currentSpeed){
+            if (info.currentSpeed != null){
+                _sensor.calculateMPS(info.currentSpeed) as Float;
+            }
+        }     
     }
 
     //! Display Cadence and MPS data fields
@@ -216,7 +260,10 @@ class VaakaFieldsView extends WatchUi.DataField {
             _MPSY = _CadenceY;
 
             // Use a separator line for horizontal layout
-            _separator = [(width / 2), top + BORDER_PAD, (width / 2), height - BORDER_PAD] as Array<Number>;
+            var x = (width/2) as Number;
+            var y1 = top + BORDER_PAD as Number;
+            var y2 = height - BORDER_PAD as Number;
+            _separator = [x, y1, x, y2] as Array<Number>;
 
         } else {
             // otherwise, use the vertical layout
@@ -235,7 +282,7 @@ class VaakaFieldsView extends WatchUi.DataField {
 
             // horizontal separator line for vertical layout
             // _separator = [ 0, dc.getHeight()/2, dc.getWidth(), dc.getHeight()/2 ] as Array<Number>;
-            _separator = [(width - 30), dc.getHeight()*0.25, (width - 20), dc.getHeight()*0.75] as Array<Number>;
+            _separator = [(width * 0.85) as Number, dc.getHeight()*0.3 as Number, (width * 0.85) as Number, dc.getHeight()*0.6 as Number] as Array<Number>;
         }
 
         _xCenter = dc.getWidth() / 2;
@@ -247,15 +294,15 @@ class VaakaFieldsView extends WatchUi.DataField {
     //! @param width Width to fit in
     //! @param height Height to fit in
     //! @return Index of the font that fits
-    private function selectFont(dc as Dc, width as Number, height as Number) as Number {
+    private function selectFont(dc as Dc , width as Number, height as Number) as Number {
         var testString = "8.8"; // Dummy string to test data width
         var fontIdx;
 
         // Search through fonts from biggest to smallest
         for (fontIdx = (_fonts.size() - 1); fontIdx > 0; fontIdx--) {
-            var dimensions = dc.getTextDimensions(testString, _fonts[fontIdx]);
+            var dimensions = dc.getTextDimensions(testString, _fonts[fontIdx]) as Lang.Array<Lang.Number>;
             var size = Graphics.getFontAscent(_fonts[fontIdx]);
-            _dataFontAscent = dimensions[1];
+            _dataFontAscent = dimensions[1] as Number;
             if ((dimensions[0] <= width) && (dimensions[1] <= height)) {
                 break;
             }
@@ -283,6 +330,9 @@ class VaakaFieldsView extends WatchUi.DataField {
         if (sensor == null) {    
             dc.drawText(_xCenter, _yCenter, Graphics.FONT_MEDIUM, "No Channel!", Graphics.TEXT_JUSTIFY_CENTER);
         } 
+        else if (_sensorOpen == false) {
+            dc.drawText(_xCenter, _yCenter, Graphics.FONT_MEDIUM, "No Vaaka Sensor", Graphics.TEXT_JUSTIFY_CENTER);
+        }
         else {
 
             // change colour to reflect is not sending data
@@ -296,9 +346,9 @@ class VaakaFieldsView extends WatchUi.DataField {
             dc.setColor(fgColor, Graphics.COLOR_TRANSPARENT);
 
             // get Cadence and MPS values
-            var CadenceCount as String;
-            var MPSValue as String;
-            var sensorData as VaakaData;
+            var CadenceCount; //as String;
+            var MPSValue; // as String;
+            var sensorData; // as VaakaData;
             sensorData = sensor.getData();
             CadenceCount = sensorData.getCadence().format("%d");
             MPSValue = sensorData.getMPS().format("%1.1f");
@@ -331,7 +381,7 @@ class VaakaFieldsView extends WatchUi.DataField {
     }
 
     //! Draw bar showing training effect a gauge
-    private function showCadenceIntensity(dc,x,y,height,cadence) as Void {
+    private function showCadenceIntensity(dc as Dc,x as Number,y as Number,height as Number,cadence as Number) as Void {
 
         // set default colours
         var bgColor = getBackgroundColor();
@@ -343,8 +393,7 @@ class VaakaFieldsView extends WatchUi.DataField {
 
 
         // draw guage
-         var segmentHeight = height/4;
-        dc.drawRoundedRectangle(x-8, y, 17, segmentHeight*4, 2);
+        var segmentHeight = height/4;
         dc.setColor(fgColor, fgColor);
 
         // draw segments
@@ -355,28 +404,46 @@ class VaakaFieldsView extends WatchUi.DataField {
             // draw elements
             thisY = thisY + segmentHeight;
             if (i != 1 && i != 4){
-                dc.drawRectangle(x-8, thisY, 17, segmentHeight + 1);
+               // dc.drawRectangle(x-8, thisY, 17, segmentHeight + 1);
             }
 
             var colour = getSegmentColour(i,cadence);
             dc.setColor(colour, colour);
             dc.fillRectangle(x-7, thisY+1, 14, segmentHeight-2);
             dc.setColor(fgColor, bgColor);
+            
         }
+         thisY = y - segmentHeight  ;
+        for (var i = 1; i < 5; i++) {
+            // draw elements
+            thisY = thisY + segmentHeight;
+       
+            // dc.drawRectangle(x-8, thisY, 17, segmentHeight + 1);
+            
+        }
+
+
+        // draw outside rectangle
+        //dc.drawRoundedRectangle(x-8, y, 17, segmentHeight*4, 2);
     }
 
     //! draw segment colour based on intensity score
-    private function getSegmentColour(segment as Number,cadence) as Graphics.ColorType {
-        var fillColor = Graphics.COLOR_WHITE;
+    private function getSegmentColour(segment as Number,cadence as Number) as Graphics.ColorValue {
+        var fillColor = Graphics.COLOR_LT_GRAY;
         var _intensity = cadence;
+        
         if (null != _intensity ) {     
             switch(segment){
                 case 4: 
-                    if ( _intensity >= _recovery) {
-                        // recovery
+                    if (_intensity < 1){
+                        // no paddle
                         fillColor = Graphics.COLOR_LT_GRAY;
                     }
-                    else if (_intensity >= _endurance) {
+                    if ( _intensity >= _recovery) {
+                        // recovery
+                        fillColor = Graphics.COLOR_DK_GRAY;
+                    }
+                    if (_intensity >= _endurance) {
                         // endurance
                         fillColor = Graphics.COLOR_BLUE;
                     }
@@ -402,6 +469,7 @@ class VaakaFieldsView extends WatchUi.DataField {
             }
         }
         return fillColor;
+        
     }
 
     //! Handle the activity timer starting
