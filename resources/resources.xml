@@ -24,7 +24,7 @@
     </fitContributions>
 
     <properties>
-        <property id="recovery" type="number">0</property>
+        <property id="recovery" type="number">28</property>
         <property id="endurance" type="number">32</property>
         <property id="tempo" type="number">36</property>
         <property id="threshold" type="number">38</property>
