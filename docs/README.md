@@ -12,7 +12,7 @@ Features:
 - Displays paddle intensity gauge using recommended intensity ranges for *Endurance*, *Tempo*, *Threshold* and *VO2 max*
 - Allows paddle cadence data to be recorded for any activity e.g. kayaking type via direct ANT connection to the Vaaka Cadence device
 - Paddle Cadence and Meters per Stroke data are automatically uploaded to Garmin Connect site for session analysis
-- Paddle session come up as kayakimg on Strava and are not mixed up with Cycling.
+- Paddle session come up as kayaking on Strava and are not mixed up with Cycling.
 
 ## Paddle Gauge Cadence ranges
 
@@ -29,20 +29,20 @@ These can be changed via the app setting feature on the Connect IQ app.  See [ch
 
 ## Session analysis
 
-The paddle cadance and distance per stoke information for an activity can be viewed via the [Garmin Connect](https://connect.garmin.com) site.  
+The paddle cadence and distance per stoke information for an activity can be viewed via the [Garmin Connect](https://connect.garmin.com) site.  
 These can be combined with other session data such as heart-rate and speed for analysis of quality of training and paddle consistency.
 
 The graph below paddle cadence and meters per stroke graphs, for an activity, as shown on Garmin Connect site:
 
 ![](vaaka-screen2.png)
 
-The graph below shows paddle cadance (grey) plotted against boat speed (blue) and meters per stoke (green):
+The graph below shows paddle cadence (grey) plotted against boat speed (blue) and meters per stoke (green):
 
 ![](vaaka-screen1.png)
 
 ## Installation
 
-Install the field from the [ConnnectIQ](https://apps.garmin.com/en-US/apps/1b64207a-020f-45cc-8bf4-94e75f47d3b9) app store.
+Install the field from the [ConnectIQ](https://apps.garmin.com/en-US/apps/1b64207a-020f-45cc-8bf4-94e75f47d3b9) app store.
 
 These can be changed via the Connect IQ application setting - see [link](https://forums.garmin.com/developer/connect-iq/w/wiki/14/changing-your-app-settings-in-garmin-express-gcm-ciq-mobile-store?_ga=2.139361142.417454056.1673869694-592074247.1673710446).
 
