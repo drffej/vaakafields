@@ -68,10 +68,10 @@
         </group>
         <group id="groupName" title="@Strings.VaakaDeviceTitle" description="@Strings.VaakaDeviceDescription">
             <setting propertyKey="@Properties.deviceNumber" title="@Strings.DeviceNumberTitle">
-                <settingConfig type="numeric" readonly="true" />
+                <settingConfig type="numeric" readonly="false" />
             </setting>
             <setting propertyKey="@Properties.serialNumber" title="@Strings.SerialNumberTitle">
-                <settingConfig type="numeric" readonly="true" />
+                <settingConfig type="numeric" readonly="false" />
             </setting> 
         </group>
     </settings>

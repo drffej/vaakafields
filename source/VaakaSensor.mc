@@ -132,8 +132,6 @@ class VaakaData {
     }
 
 class VaakaSensor {
-    //! Page number for the message type we care about
-    private const PAGE_NUMBER = 1;
 
     private const DEVICE_TYPE = 0x7A;//120;
     private const PERIOD = 8102;//8192;
@@ -175,8 +173,6 @@ class VaakaSensor {
     public function open() as Boolean {
 
         // Open the channel
-        //var open = GenericChannel.open();
-        var open = false;
         _isClosed = false;
         _isSending = false;
         _isPaired = false;
@@ -241,7 +237,7 @@ class VaakaSensor {
         }
         var payload = msg.getPayload();
 
-        var page = payload[0] & ~0x80;
+        //var page = payload[0] & ~0x80;
         //System.println(Lang.format("page=[$1$]",[page.format("%x")]) );
 
         //System.println(Lang.format("messageResponse=[$1$]",[msg.messageId.format("%x")]) );
@@ -249,7 +245,7 @@ class VaakaSensor {
         //System.println(Lang.format("messageID=[0x$1$]",[code.format("%x")]) );
         //System.println(Lang.format("messageCode=[0x$1$]",[payload[1].format("%x")]) );
         if ((Ant.MSG_ID_BROADCAST_DATA == msg.messageId)){
-            System.println(Lang.format("[0x$1$] MSG_ID_BROADCAST_DATA Page [0x$2$]",[msg.messageId.format("%x"),page.format("%x")]));
+            //System.println(Lang.format("[0x$1$] MSG_ID_BROADCAST_DATA Page [0x$2$]",[msg.messageId.format("%x"),page.format("%x")]));
 
             // Were we searching?
             _isSending = true;   // device Transmitting data

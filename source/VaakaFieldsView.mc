@@ -18,7 +18,6 @@ using Toybox.Application.Properties as Properties;
 class VaakaFieldsView extends WatchUi.DataField {
 
     private const BORDER_PAD = 4;
-    private const UNITS_SPACING = 2;
 
     private const _fonts as Array<Graphics.FontDefinition> = [Graphics.FONT_XTINY, Graphics.FONT_TINY, Graphics.FONT_SMALL, Graphics.FONT_MEDIUM, Graphics.FONT_LARGE,
              Graphics.FONT_NUMBER_MILD, Graphics.FONT_NUMBER_MEDIUM, Graphics.FONT_NUMBER_HOT, Graphics.FONT_NUMBER_THAI_HOT] ;
@@ -43,7 +42,6 @@ class VaakaFieldsView extends WatchUi.DataField {
     private var _MPSY as Number = 0;
 
     // Font values
-    private const _unitsFont as Graphics.FontType = Graphics.FONT_XTINY;
     private var _dataFont as Graphics.FontType = Graphics.FONT_XTINY;
     private var _dataFontAscent as Number = 0;
 
@@ -65,8 +63,8 @@ class VaakaFieldsView extends WatchUi.DataField {
     // rolling average
     const AVERAGE_WINDOW = 5;
     private var _RAcurrentPosition as Number = 0;
-    private var _RAcurrentSum as Number = 0;
-    private var _rollingAverage as Array<Number>?;
+    private var _RAcurrentSum as Float = 0.0;
+    private var _rollingAverage as Array<Float> = [0.0, 0.0, 0.0, 0.0, 0.0];
 
     // paddle cadence levels - defaults
     private var _recovery as Number = 28;
@@ -118,13 +116,7 @@ class VaakaFieldsView extends WatchUi.DataField {
         <property id="tempo" type="number">36</property>
         <property id="threshold" type="number">38</property>
         <property id="v02max" type="number">44</property>
-        var mySetting = Properties.getValue("appVersion");
-        System.println("before");
-        System.println(mySetting);
-        System.println("after:");
-        Properties.setValue("appVersion","newone");
-        mySetting = Properties.getValue("appVersion");
-        System.println(mySetting);
+       
         */
     }
 
@@ -161,19 +153,16 @@ class VaakaFieldsView extends WatchUi.DataField {
         WatchUi.requestUpdate();   // update the view to reflect changes
     }
 
-/*
-    private function RollingAverage(newValue as Number) as Number {
-        //var _rollingAverage as Array;
-        var _RAcurrentPosition = 0;
-        var _RAcurrentSum = 0;
+
+    private function RollingAverage(newValue as Float) as Float {
 
          //Subtract the oldest number from the prev sum, add the new number
-        //_RAcurrentSum = _RAcurrentSum - _rollingAverage[_RAcurrentPosition] + newValue;
+        _RAcurrentSum = _RAcurrentSum - _rollingAverage[_RAcurrentPosition] + newValue;
 
         //Assign the newValue to the position in the array
         _rollingAverage[_RAcurrentPosition] = newValue;
 
-        _RAcurrentPosition++;
+        _RAcurrentPosition = _RAcurrentPosition + 1;
         
         if (_RAcurrentPosition >= AVERAGE_WINDOW-1) { // Don't go beyond the size of the array...
             _RAcurrentPosition = 0;
@@ -182,7 +171,7 @@ class VaakaFieldsView extends WatchUi.DataField {
         //return the average
         return _RAcurrentSum / AVERAGE_WINDOW;
     }
-    */
+    
 
 
     var _previousCadence as Number = 0;
@@ -196,10 +185,10 @@ class VaakaFieldsView extends WatchUi.DataField {
     var _previousMPS as Float = 0.0;
     private function recordMPS(value as Float) as Void{
         if (value != _previousMPS){
-            //if (value < 2*RollingAverage(value)){
+            if (value < 2.0*RollingAverage(value)){
                 _previousMPS = value;
                 mpsField.setData(value);
-           // }
+            }
         }
     }
 
@@ -229,7 +218,7 @@ class VaakaFieldsView extends WatchUi.DataField {
 
         //var hLayoutFontIdx = selectFont(dc, 150, hLayoutHeight);
         var hLayoutFontIdx = selectFont(dc, hLayoutWidth, hLayoutHeight);
-        var size = Graphics.getFontAscent(_fonts[hLayoutFontIdx]);
+        //var size = Graphics.getFontAscent(_fonts[hLayoutFontIdx]);
             
         //System.println(Lang.format("set size $1$ h=$2$ h2=$3$ size=$4$",[hLayoutFontIdx.format("%d"), height.format("%d"), hLayoutHeight.format("%d"),size.format("%d")] ) );
 
@@ -301,7 +290,7 @@ class VaakaFieldsView extends WatchUi.DataField {
         // Search through fonts from biggest to smallest
         for (fontIdx = (_fonts.size() - 1); fontIdx > 0; fontIdx--) {
             var dimensions = dc.getTextDimensions(testString, _fonts[fontIdx]) as Lang.Array<Lang.Number>;
-            var size = Graphics.getFontAscent(_fonts[fontIdx]);
+            //var size = Graphics.getFontAscent(_fonts[fontIdx]);
             _dataFontAscent = dimensions[1] as Number;
             if ((dimensions[0] <= width) && (dimensions[1] <= height)) {
                 break;
